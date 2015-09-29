@@ -1,0 +1,30 @@
+{
+  "name": "sticky-load-balancer",
+  "version": "0.0.1",
+  "description": "NPM-Module for Nodejs to create a loadbalancer with a sticky-strategie.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielsun174/sticky-load-balancer.git"
+  },
+  "keywords": [
+    "stick",
+    "load",
+    "balancer",
+    "balancing",
+    "load-balancer"
+  ],
+  "author": "danielsun174",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/danielsun174/sticky-load-balancer/issues"
+  },
+  "homepage": "https://github.com/danielsun174/sticky-load-balancer#readme",
+  "dependencies": {
+    "farmhash": "^1.1.0",
+    "http": "*"
+  }
+}
