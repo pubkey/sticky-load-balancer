@@ -25,6 +25,7 @@
   "homepage": "https://github.com/danielsun174/sticky-load-balancer#readme",
   "dependencies": {
     "farmhash": "^1.1.0",
-    "http": "*"
+    "http": "*",
+    "url": "^0.11.0"
   }
 }
