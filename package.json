@@ -26,6 +26,7 @@
   "dependencies": {
     "farmhash": "^1.1.0",
     "http": "*",
+    "request": "^2.64.0",
     "url": "^0.11.0"
   }
 }

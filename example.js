@@ -3,7 +3,7 @@ stickyLoadBalancer=require('./index.js');
 var url=require('url');
 
 
-//stickyLoadBalancer.setIdentifier('fooooooooobaaaaar');
+stickyLoadBalancer.setIdentifier('fooooooooobaaaaar');
 
 stickyLoadBalancer.setStickyStrategie(function(request){
 

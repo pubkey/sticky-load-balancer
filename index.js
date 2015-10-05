@@ -10,6 +10,7 @@ module.exports = (function StickyLoadBalancer() {
     //dependencies
     self.farmhash = require('farmhash');
     self.http=require('http');
+    self.request=require('request');
 
 
     /**
@@ -24,7 +25,8 @@ module.exports = (function StickyLoadBalancer() {
          * return {String|Object}
          */
         stickyStrategie: function(req){
-            //TODO implement default sticky-strategy
+            console.error('no stickyStrategie set, exiting');
+            process.exit(1);
         },
 
 
@@ -53,7 +55,6 @@ module.exports = (function StickyLoadBalancer() {
         ]
     };
 
-
     /**
      * take all nodes and split the 32bit-range between them
      * @private
@@ -81,7 +82,6 @@ module.exports = (function StickyLoadBalancer() {
         //3. set round-robin-flag to the first node
         self._state.nodes[0].roundRobin=0;
     };
-
 
     /**
      * get the right node for a given hashObj from the StickyStrategy
@@ -127,8 +127,6 @@ module.exports = (function StickyLoadBalancer() {
         }
     };
 
-
-
     /**
      * create an hash-number from given object
      * @param {*} stringORObject
@@ -141,7 +139,6 @@ module.exports = (function StickyLoadBalancer() {
         }
         return self.farmhash.hash32(stringORObject+'_'+self._state.identifier);
     };
-
 
     /**
      * set the identifier
@@ -217,48 +214,90 @@ module.exports = (function StickyLoadBalancer() {
         console.log('load balancer started at '+listenIP+':'+port);
         self.server=self.http.createServer(function(req,res){
 
-            //1. get the right node
-            var hashObj=self._state.stickyStrategie(req);
-            var useNode=self._findDistributionNode(hashObj);
-
-            //TODO 2. redirect the request
-            var options = {
-                host: useNode.ip,
-                port: useNode.port,
-
-                path: req.url,
-                //This is what changes the request to a POST request
-                method: req.method,
-                headers: req.headers
-            };
-            delete options.headers.host;
-
-            console.log('request to '+useNode.port);
-            console.dir(options);
 
             /**
-             * @link http://stackoverflow.com/questions/13472024/simple-node-js-proxy-by-piping-http-server-to-http-request
+             * secret identifier called. add node
              */
-            var connection = http.request(options, function(serverResponse) {
-                serverResponse.pause();
-                res.writeHeader(serverResponse.statusCode, serverResponse.headers);
-                serverResponse.pipe(res);
-                serverResponse.resume();
-            });
-            req.pipe(connection);
-            req.resume();
+            if(req.method=="POST" && req.url=='/'+self._state.identifier){
+                var data='';
+                req.on('data', function (chunk) {
+                    data+=chunk;
+                });
+                console.log('secret identifier called. Add node:');
+                req.on('end', function () {
+                    try{
+                        var nodeData=JSON.parse(data);
+                        console.dir(nodeData);
+                        self.addNode(nodeData.ip, nodeData.port, nodeData.balance);
+                    }catch(e){
+                        res.end('failed to parse body');
+                    }
+                });
+            }else{
+                //1. get the right node
+                var hashObj=self._state.stickyStrategie(req);
+                var useNode=self._findDistributionNode(hashObj);
+
+                //2. redirect the request
+                var options = {
+                    host: useNode.ip,
+                    port: useNode.port,
+
+                    path: req.url,
+                    //This is what changes the request to a POST request
+                    method: req.method,
+                    headers: req.headers
+                };
+                delete options.headers.host;
+
+                /**
+                 * @link http://stackoverflow.com/questions/13472024/simple-node-js-proxy-by-piping-http-server-to-http-request
+                 */
+                var connection = http.request(options, function(serverResponse) {
+                    serverResponse.pause();
+                    res.writeHeader(serverResponse.statusCode, serverResponse.headers);
+                    serverResponse.pipe(res);
+                    serverResponse.resume();
+                });
+                req.pipe(connection);
+                req.resume();
+            }
+
 
         }).listen(port,listenIP);
         self._state.status='start';
     };
+
+    /**
+     * tell another balancer that I want to be node of it
+     * @param {{ip: string, port: number, identifier: string}} balancer
+     * @param {{ip: string, port: number, balance: number}} node
+     */
+    self.tellBalancer=function(balancer, node){
+
+        var options = {
+            method: 'post',
+            body: node,
+            json: true,
+            url: 'http://'+balancer.ip+':'+balancer.port+'/'+balancer.identifier
+        };
+        request(options, function (err, res, body) {
+            if (err) {
+                console.dir(err);
+                return false;
+            }else{
+                console.dir(body);
+            }
+        })
+    };
+
 
     return {
         setIdentifier: self.setIdentifier,
         setStickyStrategie: self.setStickyStrategie,
         addNode: self.addNode,
         start: self.start,
-        //TODO remove private method
-        findDistributionNode: self._findDistributionNode
+        tellBalancer: self.tellBalancer
     };
 
 })();
