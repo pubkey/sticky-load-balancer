@@ -5,6 +5,11 @@ var url=require('url');
 
 stickyLoadBalancer.setIdentifier('fooooooooobaaaaar');
 
+
+stickyLoadBalancer.setStickyStrategie(
+    'url'
+);
+/*
 stickyLoadBalancer.setStickyStrategie(function(request){
 
     var ret={};
@@ -16,7 +21,7 @@ stickyLoadBalancer.setStickyStrategie(function(request){
 
 
     return ret;
-});
+});*/
 
 stickyLoadBalancer.addNode('127.0.0.1', 5000, 2);
 //stickyLoadBalancer.addNode('127.0.0.1', 5001, 2);

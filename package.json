@@ -24,8 +24,11 @@
   },
   "homepage": "https://github.com/danielsun174/sticky-load-balancer#readme",
   "dependencies": {
+    "async": "^1.4.2",
+    "crypto": "0.0.3",
     "farmhash": "^1.1.0",
-    "http": "*",
+    "http": "0.0.0",
+    "querystring": "^0.2.0",
     "request": "^2.64.0",
     "url": "^0.11.0"
   }

@@ -14,20 +14,15 @@ module.exports = (function StickyLoadBalancer() {
 
 
     /**
-     * @type {{identifier: String, stickyStrategie: Function}}
+     * @type {{identifier: String, stickyStrategie: string[]}}
      * @private
      */
     self._state={
         identifier: Math.random()+Math.random()+Math.random()+Math.random()+Math.random()+Math.random(),
         /**
-         *
-         * @param req
-         * return {String|Object}
+         * @type {String[]}
          */
-        stickyStrategie: function(req){
-            console.error('no stickyStrategie set, exiting');
-            process.exit(1);
-        },
+        stickyStrategie: [],
 
 
         server: null,
@@ -150,10 +145,10 @@ module.exports = (function StickyLoadBalancer() {
 
     /**
      * set a custom sticky-strategie
-     * @param {function({})} f function with req as attribute
+     * @param {string[]} stringArray everything to use to define the sticky-parameter
      */
-    self.setStickyStrategie=function(f){
-        self._state.stickyStrategie=f;
+    self.setStickyStrategie=function(stringArray){
+        self._state.stickyStrategie=stringArray;
     };
 
     /**
@@ -283,10 +278,9 @@ module.exports = (function StickyLoadBalancer() {
         };
         request(options, function (err, res, body) {
             if (err) {
+                console.error('sticky-load-balancer.tellBalancer(): cant add node, connection error: ');
                 console.dir(err);
                 return false;
-            }else{
-                console.dir(body);
             }
         })
     };
