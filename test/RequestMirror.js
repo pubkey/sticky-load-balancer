@@ -71,7 +71,7 @@ module.exports = (function RequestMirror() {
                 setTimeout(function () {
                     res.setHeader('Content-Type', 'application/json');
                     res.end(JSON.stringify(ret));
-                }, 1000);
+                }, 0);
             });
             req.on('error', function (err) {
                 res.end('Error');

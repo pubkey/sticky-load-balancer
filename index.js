@@ -7,10 +7,18 @@
 module.exports = (function StickyLoadBalancer() {
     var self = this;
 
+    var doLog = false;
+    var log = function (w) {
+        if (doLog) {
+            console.dir(w);
+        }
+    };
+
     //dependencies
     var farmhash = require('farmhash');
     var http = require('http');
     var request = require('request');
+    var querystring=require('querystring');
 
 
     /**
@@ -21,20 +29,86 @@ module.exports = (function StickyLoadBalancer() {
      */
     var ret = function (ip, port) {
 
-        this.getIp = function(){return ip};
-        this.getPort=function(){return port};
+        this.getIp = function () {
+            return ip
+        };
+        this.getPort = function () {
+            return port
+        };
 
         this.identifier = '-' + Math.random() + Math.random() + Math.random() + Math.random() + Math.random() + Math.random();
 
         /**
+         * array which contains the current strategie
          * @type {String[]}
+         * @private
          */
-        this.stickyStrategie = [];
-
-        var server=null;
-        this.setServer=function(newServer){
-          server=newServer;
+        var _stickyStrategy = [];
+        var _renderState = {
+            cookie: false,
+            body: false
         };
+        this.getRenderState = function () {
+            return _renderState;
+        };
+        /**
+         * get the current sticky strategy
+         * @return {String[]}
+         */
+        this.getStickyStrategy = function () {
+            return _stickyStrategy;
+        };
+        /**
+         * set a custom sticky-strategie
+         * @param {string[]} stringArray everything to use to define the sticky-parameter
+         */
+        this.setStickyStrategy = function (stringArray) {
+
+            //1. check if strategie is ok
+            if (stringArray.length <= 0) {
+                log('sticky-load-balancer(): couldnt set sticky strategy (no or empty array given)');
+                return false;
+            }
+            var failed = false;
+            stringArray.forEach(function (v) {
+                if (typeof v !== "string") {
+                    log('sticky-load-balancer(): couldnt set sticky strategy (one array-el is not a string)');
+                    failed = true;
+                    return false;
+                }
+            });
+            if (failed) {
+                return false;
+            }
+
+            //2. reset performance-hints
+            _renderState.body = false;
+            _renderState.cookie = false;
+
+            //3. check performance-hints
+            stringArray.forEach(function (v) {
+                var split = v.split('.');
+                if (split[0] == 'body') {
+                    _renderState.body = true;
+                }
+                if (split[0] == 'cookie') {
+                    _renderState.cookie = true;
+                }
+            });
+            _stickyStrategy = stringArray;
+        };
+
+
+        /**
+         * represent the running server
+         * @type {null}
+         * @private
+         */
+        var _server = null;
+        this.setServer = function (newServer) {
+            _server = newServer;
+        };
+
 
         /**
          * @type {boolean}
@@ -54,10 +128,10 @@ module.exports = (function StickyLoadBalancer() {
              roundRobin: null
              }*/
         ];
-        this.addOneNode=function(node){
+        this.addOneNode = function (node) {
             nodes.push(node);
         };
-        this.getNodes=function(){
+        this.getNodes = function () {
             return nodes;
         };
 
@@ -94,12 +168,63 @@ module.exports = (function StickyLoadBalancer() {
         };
 
         /**
+         * set the identifier
+         * @param {string} ident
+         */
+        var setIdentifier = function (ident) {
+            this.identifier = ident;
+        };
+
+        /**
+         * add a node to the balancer
+         * @param {string} ip
+         * @param {number} port
+         * @param {number} balance 1-10 only, if node X has balance=2 and node Y has balance=4, node Y would get double the load than node X
+         */
+        var addNode = function (ip, port, balance) {
+            var self = this;
+
+            //1. check if balance ok
+            if (balance < 1 || balance > 10) {
+                log('sticky-load-balancer.addNode(' + ip + ':' + port + ',' + balance + '): balance must be between 1 and 10');
+                return false;
+            }
+
+            //2. check if node doesnt exist
+            var exists = false;
+            self.getNodes().forEach(function (node) {
+                if (node.ip == ip && node.port == port) {
+                    exists = true;
+                    return false;
+                }
+            });
+            if (exists == true) {
+                log('sticky-load-balancer.addNode(' + ip + ':' + port + ',' + balance + '): node already exists');
+                return false;
+            }
+
+
+            self.addOneNode({
+                ip: ip,
+                port: port,
+                balance: balance,
+                range: {
+                    from: 0,
+                    to: 0
+                },
+                roundRobin: null
+            });
+            _reDistributeNodes(self);
+        };
+
+        /**
          * get the right node for a given hashObj from the StickyStrategy
+         * @param self
          * @param {{}|String} hashObj
          * @return {*} the node
          * @private
          */
-        var _findDistributionNode = function (self,hashObj) {
+        var _findDistributionNode = function (self, hashObj) {
             if (Object.keys(hashObj).length === 0 || hashObj === '') {
                 //use round robin because hashObj is empty
                 var robinNode = null;
@@ -124,10 +249,10 @@ module.exports = (function StickyLoadBalancer() {
                 return robinNode;
             } else {
                 //use sticky-mode
-                var hashNr = self._hash(hashObj);
+                var hashNr = _hash(hashObj);
                 //find node with this range
                 var returnNode = null;
-                self.getNodes().nodes.forEach(function (node) {
+                self.getNodes().forEach(function (node) {
                     if (node.range.to >= hashNr && node.range.from <= hashNr) {
                         returnNode = node;
                         return false;
@@ -137,81 +262,65 @@ module.exports = (function StickyLoadBalancer() {
             }
         };
 
-
         /**
-         * set the identifier
-         * @param {string} ident
+         * returns true if the given request can be piped
+         * @param self
+         * @param req
+         * @return {boolean}
+         * @private
          */
-        var setIdentifier = function (ident) {
-            this.identifier = ident;
+        var _canPipe = function (self, req) {
+            return !(req.method == "POST" && self.getRenderState().body == true);
         };
 
         /**
-         * set a custom sticky-strategie
-         * @param {string[]} stringArray everything to use to define the sticky-parameter
+         * get a hashObject from a non-piped request
+         * @param self
+         * @param req
+         * @return {{}}
+         * @private
          */
-        var setStickyStrategie = function (stringArray) {
-            this.stickyStrategie = stringArray;
-        };
-
-        /**
-         * add a node to the balancer
-         * @param {string} ip
-         * @param {number} port
-         * @param {number} balance 1-10 only, if node X has balance=2 and node Y has balance=4, node Y would get double the load than node X
-         */
-        var addNode = function (ip, port, balance) {
-            var self=this;
-
-            //1. check if balance ok
-            if (balance < 1 || balance > 10) {
-                console.error('sticky-load-balancer.addNode(' + ip + ':' + port + ',' + balance + '): balance must be between 1 and 10');
-                return false;
+        var _getHashObject = function (self, req) {
+            var ret = {};
+            //parse cookies if needed
+            if(self.getRenderState().cookie){
+                req.cookie=_parseCookies(req);
             }
 
-            //2. check if node doesnt exist
-            var exists = false;
-            self.getNodes().forEach(function (node) {
-                if (node.ip == ip && node.port == port) {
-                    exists = true;
-                    return false;
+            //parse body if needed
+            if(self.getRenderState().body && req.bodyData){
+                req.body=_parseBody(req.bodyData);
+            }
+
+            self.getStickyStrategy().forEach(function (v) {
+                var val = _objectAttributeByString(req, v);
+                if (typeof val !== "undefined") {
+                    ret[v] = val;
                 }
             });
-            if (exists == true) {
-                console.error('sticky-load-balancer.addNode(' + ip + ':' + port + ',' + balance + '): node already exists');
-                return false;
+            //add unique identifier
+            if(Object.keys(ret).length!=0){
+                ret[self.identifier + '______'] = '1';
             }
-
-
-            self.addOneNode({
-                ip: ip,
-                port: port,
-                balance: balance,
-                range: {
-                    from: 0,
-                    to: 0
-                },
-                roundRobin: null
-            });
-            _reDistributeNodes(self);
+            return ret;
         };
 
         /**
          * start the shit!
          */
         var start = function () {
-            var self=this;
+            var self = this;
 
             if (self.getNodes().length === 0) {
-                console.error('sticky-load-balancer.start(): called but no nodes are added at the moment');
+                log('sticky-load-balancer.start(): called but no nodes are added at the moment');
             }
 
-            if(self.running==true){
-                console.error('sticky-load-balancer.start(): cannot start because already started');
+            if (self.running == true) {
+                log('sticky-load-balancer.start(): cannot start because already started');
                 return false;
             }
 
-            console.log('load balancer started at http://' + self.getIp() + ':' + self.getPort()+'/');
+            log('load balancer started at http://' + self.getIp() + ':' + self.getPort() + '/');
             var server = http.createServer(function (req, res) {
 
 
@@ -223,66 +332,110 @@ module.exports = (function StickyLoadBalancer() {
                     req.on('data', function (chunk) {
                         data += chunk;
                     });
-                    console.log('secret identifier called. Add node:');
+                    log('sticky-load-balancer(' + self.getIp() + ':' + self.getPort() + '): secret identifier called. Add node:');
                     req.on('end', function () {
                         try {
                             var nodeData = JSON.parse(data);
-                            console.dir(nodeData);
+                            log(nodeData);
                             self.addNode(nodeData.ip, nodeData.port, nodeData.balance);
                         } catch (e) {
                             res.end('failed to parse body');
                         }
                     });
                 } else {
-                    //1. get the right node
 
-                    //TODO use sticky strategie
-                    //var hashObj = self.stickyStrategie(req);
-                    var hashObj={};
-
-                    var useNode = _findDistributionNode(self,hashObj);
-
-                    if(useNode==null){
-                        console.error('sticky-load-balancer('+self.getIp()+':'+self.getPort()+') incoming request but couldnt find node');
+                    //0. exit if no node exists
+                    if (self.getNodes().length == 0) {
+                        log('sticky-load-balancer(' + self.getIp() + ':' + self.getPort() + ') incoming request but couldnt find node');
                         return false;
                     }
 
-                    //2. redirect the request
-                    var options = {
-                        host: useNode.ip,
-                        port: useNode.port,
+                    //1. check if request can be piped
+                    var hashObj = {};
+                    var useNode=null;
+                    if (_canPipe(self, req)) {
 
-                        path: req.url,
-                        //This is what changes the request to a POST request
-                        method: req.method,
-                        headers: req.headers
-                    };
-                    delete options.headers.host;
+                        //pipe request
+ //                       log('pipe request');
+                        hashObj = _getHashObject(self, req);
+                        useNode = _findDistributionNode(self, hashObj);
+                        console.dir(hashObj);
 
-                    /**
-                     * @link http://stackoverflow.com/questions/13472024/simple-node-js-proxy-by-piping-http-server-to-http-request
-                     */
-                    var connection = http.request(options, function (serverResponse) {
-                        serverResponse.pause();
-                        res.writeHeader(serverResponse.statusCode, serverResponse.headers);
-                        serverResponse.pipe(res);
-                        serverResponse.resume();
-                    });
-                    req.pipe(connection);
-                    req.resume();
+                        //2. redirect the request
+                        var options = {
+                            host: useNode.ip,
+                            port: useNode.port,
+
+                            path: req.url,
+                            //This is what changes the request to a POST request
+                            method: req.method,
+                            headers: req.headers
+                        };
+                        delete options.headers.host;
+
+                        /**
+                         * @link http://stackoverflow.com/questions/13472024/simple-node-js-proxy-by-piping-http-server-to-http-request
+                         */
+                        var connection = http.request(options, function (serverResponse) {
+                            serverResponse.pause();
+                            res.writeHeader(serverResponse.statusCode, serverResponse.headers);
+                            serverResponse.pipe(res);
+                            serverResponse.resume();
+                        });
+                        req.pipe(connection);
+                        req.resume();
+
+                    } else {
+//                        log('cannot pipe request');
+
+                        //1.2 w8 for all data
+                        var body='';
+                        req.on('data', function(chunk){
+                            body+=chunk;
+                        });
+                        req.on('end', function(){
+                           req.bodyData=body;
+
+                            hashObj = _getHashObject(self, req);
+                            useNode = _findDistributionNode(self, hashObj);
+
+                            //2. redirect the request
+                            var options = {
+                                host: useNode.ip,
+                                port: useNode.port,
+
+                                path: req.url,
+                                //This is what changes the request to a POST request
+                                method: req.method,
+                                headers: req.headers
+                            };
+                            delete options.headers.host;
+
+                            /**
+                             * @link http://stackoverflow.com/questions/13472024/simple-node-js-proxy-by-piping-http-server-to-http-request
+                             */
+                            var connection = http.request(options, function (serverResponse) {
+                                serverResponse.pause();
+                                res.writeHeader(serverResponse.statusCode, serverResponse.headers);
+                                serverResponse.pipe(res);
+                                serverResponse.resume();
+                            });
+                            connection.end(body);
+
+                        });
+                    }
                 }
 
 
             }).listen(self.getPort(), self.getIp());
             self.setServer(server);
-            self.running=true;
+            self.running = true;
         };
 
         return {
-            setStickyStrategie:setStickyStrategie,
             setIdentifier: setIdentifier,
-            addNode:addNode,
-            start:start
+            addNode: addNode,
+            start: start
         }
 
 
@@ -290,16 +443,77 @@ module.exports = (function StickyLoadBalancer() {
 
 
     /**
+     * get attribute of object by string
+     * @param {{}} o
+     * @param {string} s
+     * @return {*}
+     * @private
+     */
+    var _objectAttributeByString = function (o, s) {
+        s = s.replace(/^\./, '');           // strip a leading dot
+        var a = s.split('.');
+        for (var i = 0, n = a.length; i < n; ++i) {
+            var k = a[i];
+            if (k in o) {
+                o = o[k];
+            } else {
+                return;
+            }
+        }
+        return o;
+    };
+
+    /**
      * create an hash-number from given object
      * @param {*} stringORObject
      * @private
      * @returns {number} the hash as 32-bit-number ( 0 to 4,294,967,296 )
      */
-    self._hash = function (stringORObject) {
+    var _hash = function (stringORObject) {
         if (typeof stringORObject !== "string") {
             stringORObject = JSON.stringify(stringORObject);
         }
-        return farmhash.hash32(stringORObject + '_' + this.identifier);
+        return farmhash.hash32(stringORObject);
+    };
+
+    var _parseCookies = function (req) {
+        try {
+
+            var list = {},
+                rc = req.headers.cookie;
+
+            rc && rc.split(';').forEach(function (cookie) {
+                var parts = cookie.split('=');
+                list[parts.shift().trim()] = decodeURI(parts.join('='));
+            });
+
+            return list;
+
+        } catch (e) {
+            return {};
+        }
+    };
+    var _parseBody = function (bodyData) {
+        var ret = {};
+        var done = false;
+        try {
+            ret = JSON.parse(bodyData);
+            done = true;
+        } catch (e) {
+        }
+
+        try {
+            if (done == false) {
+                ret = querystring.parse(bodyData);
+            }
+        } catch (e) {
+        }
+
+        if (Object.keys(ret).length == 0) {
+            ret = {};
+        }
+
+        return ret;
     };
 
 
@@ -318,13 +532,17 @@ module.exports = (function StickyLoadBalancer() {
         };
         request(options, function (err, res, body) {
             if (err) {
-                console.error('sticky-load-balancer.tellBalancer(): cant add node, connection error: ');
-                console.dir(err);
+                log('sticky-load-balancer.tellBalancer(): cant add node, connection error: ');
+                log(err);
                 return false;
             }
         })
     };
 
+
+    ret.setLogging = function (onOff) {
+        doLog = onOff;
+    };
 
     return ret;
 })();
