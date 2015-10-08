@@ -317,8 +317,8 @@ var runTest=function(cb){
                         'cookie': 'foo=bar; centralnotice_buckets_by_campaign=%7B%22wlm%202015%22%3A%7B%22val%22%3A0%2C%22start%22%3A1440284460%2C%22end%22%3A1447275540%7D%7D; GeoIP=:::::v6; dewikimwuser-sessionId=b7361cbc5cb3b9b2; WMF-Last-Access=06-Oct-2015'
                     },
                     body: {
-                        foo: 'bar'+rand,
-                        ar: ['foo', 'bar']
+                        foo: 'bar',
+                        ar: ['foo', 'bar'+rand]
                     },
                     json: true
                 }, function (err, response, json) {
@@ -340,6 +340,9 @@ var runTest=function(cb){
                         }
                         if (json.body.ar.length != 2) {
                             testFailed.push('chainedBalancers(): body.ar.length!=2');
+                        }
+                        if (json.body.foo != 'bar') {
+                            testFailed.push('chainedBalancers(): body[foo] is not bar');
                         }
 
                     } catch (e) {
