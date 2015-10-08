@@ -1,31 +1,46 @@
-stickyLoadBalancer=require('./index.js');
+StickyLoadBalancer = require('sticky-load-balancer');
 
-var url=require('url');
+//set loggin to active
+StickyLoadBalancer.setLogging(true);
+
+//create new balancer
+var balancer = new StickyLoadBalancer('127.0.0.1', 5555);
+
+/**
+ * this must be unique if you chain multiple balancers together.
+ * @default Math.random()^5
+ */
+balancer.setIdentifier('foooooobar');
+
+/**
+ * define which parts of a request should be take to create your sticky strategie
+ */
+balancer.setStickyStrategy([
+    'url',
+    'body.foo',
+    'body.foobar',
+    'headers.user-agent',
+    'cookie.foo'
+]);
+
+//start the balancer
+balancer.start();
 
 
-stickyLoadBalancer.setIdentifier('fooooooooobaaaaar');
-
-
-stickyLoadBalancer.setStickyStrategie(
-    'url'
-);
-/*
-stickyLoadBalancer.setStickyStrategie(function(request){
-
-    var ret={};
-    var url_parts = url.parse(request.url, true);
-
-    if(url_parts.query.articleID){
-        ret.articleID=url_parts.query.articleID;
+/**
+ * tell the balancer that this node exists
+ */
+StickyLoadBalancer.tellBalancer(
+    {
+        //stats of the balancer
+        ip: '127.0.0.1',
+        port: 5555,
+        identifier: 'foooooobar'
+    },
+    {
+        //stats of the node
+        ip: '127.0.0.1',
+        port: 80,
+        balance: 6
     }
-
-
-    return ret;
-});*/
-
-stickyLoadBalancer.addNode('127.0.0.1', 5000, 2);
-//stickyLoadBalancer.addNode('127.0.0.1', 5001, 2);
-//stickyLoadBalancer.addNode('127.0.0.1', 5002, 2);
-
-
-stickyLoadBalancer.start('127.0.0.1', 2000);
+);
