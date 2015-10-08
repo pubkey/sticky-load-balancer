@@ -1,6 +1,6 @@
 {
   "name": "sticky-load-balancer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "NPM-Module for Nodejs to create a loadbalancer with a sticky-strategie.",
   "main": "index.js",
   "scripts": {
