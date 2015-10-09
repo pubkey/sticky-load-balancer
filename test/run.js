@@ -369,6 +369,59 @@ var runTest=function(cb){
             }
         },
 
+
+        function breakingNode(next){
+            //this just stop the server von RequestMirror
+            request({
+                method: 'POST',
+                url: 'http://localhost:' + testPort + '/foobar?bliebla=imba',
+                headers: {
+                    'User-Agent': 'foobar agent',
+                    'cookie': 'foo=bar; centralnotice_buckets_by_campaign=%7B%22wlm%202015%22%3A%7B%22val%22%3A0%2C%22start%22%3A1440284460%2C%22end%22%3A1447275540%7D%7D; GeoIP=:::::v6; dewikimwuser-sessionId=b7361cbc5cb3b9b2; WMF-Last-Access=06-Oct-2015'
+                },
+                body: {
+                    stop: true,
+                    foo: 'bbbar',
+                    ar: ['foo', 'bar']
+                },
+                json: true
+            }, function (err, response, json) {
+                next();
+
+            });
+        },
+        function brokenNode(next){
+            console.time("brokenNode");
+            request({
+                method: 'POST',
+                url: 'http://localhost:' + testPort + '/foobar?bliebla=imba',
+                headers: {
+                    'User-Agent': 'foobar agent',
+                    'cookie': 'foo=bar; centralnotice_buckets_by_campaign=%7B%22wlm%202015%22%3A%7B%22val%22%3A0%2C%22start%22%3A1440284460%2C%22end%22%3A1447275540%7D%7D; GeoIP=:::::v6; dewikimwuser-sessionId=b7361cbc5cb3b9b2; WMF-Last-Access=06-Oct-2015'
+                },
+                body: {
+                    stop: true,
+                    foo: 'bbbar',
+                    ar: ['foo', 'bar']
+                },
+                json: true
+            }, function (err, response, json) {
+                if (err) {
+                    testFailed.push('jsonRequest(): error in request');
+                }
+
+                try{
+                    if(json!='StickyLoadBalancer: Error with node'){
+                        testFailed.push('brokenNode(): wrong error handling with broken node');
+                    }
+                }catch(e){}
+
+
+                console.timeEnd("brokenNode");
+                next();
+
+            });
+        },
         function finish() {
             console.log('failed tests:');
             console.dir(testFailed);

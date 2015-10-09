@@ -354,9 +354,6 @@ module.exports = (function StickyLoadBalancer() {
                     var hashObj = {};
                     var useNode=null;
                     if (_canPipe(self, req)) {
-
-                        //pipe request
- //                       log('pipe request');
                         hashObj = _getHashObject(self, req);
                         useNode = _findDistributionNode(self, hashObj);
                         console.dir(hashObj);
@@ -377,17 +374,23 @@ module.exports = (function StickyLoadBalancer() {
                          * @link http://stackoverflow.com/questions/13472024/simple-node-js-proxy-by-piping-http-server-to-http-request
                          */
                         var connection = http.request(options, function (serverResponse) {
+
                             serverResponse.pause();
                             res.writeHeader(serverResponse.statusCode, serverResponse.headers);
                             serverResponse.pipe(res);
                             serverResponse.resume();
                         });
+
+                        connection.on('error', function(e){
+                            log('req error: ');
+                            log(e);
+                            _handleError(res);
+                        });
+
                         req.pipe(connection);
                         req.resume();
 
                     } else {
-//                        log('cannot pipe request');
-
                         //1.2 w8 for all data
                         var body='';
                         req.on('data', function(chunk){
@@ -415,17 +418,30 @@ module.exports = (function StickyLoadBalancer() {
                              * @link http://stackoverflow.com/questions/13472024/simple-node-js-proxy-by-piping-http-server-to-http-request
                              */
                             var connection = http.request(options, function (serverResponse) {
+
                                 serverResponse.pause();
                                 res.writeHeader(serverResponse.statusCode, serverResponse.headers);
                                 serverResponse.pipe(res);
                                 serverResponse.resume();
                             });
+
+                            connection.on('error', function(e){
+                                log('req error: ');
+                                log(e);
+                                _handleError(res);
+                            });
+
                             connection.end(body);
 
                         });
+
+
+                        req.on('error', function(e){
+                            console.log('req error: ');
+                            console.dir(e);
+                        });
                     }
                 }
-
 
             }).listen(self.getPort(), self.getIp());
             self.setServer(server);
@@ -516,6 +532,15 @@ module.exports = (function StickyLoadBalancer() {
         return ret;
     };
 
+
+    /**
+     * handle requests from broken nodes
+     * @param res
+     * @private
+     */
+    var _handleError=function(res){
+        res.end('StickyLoadBalancer: Error with node');
+    };
 
     /**
      * tell another balancer that I want to be node of it

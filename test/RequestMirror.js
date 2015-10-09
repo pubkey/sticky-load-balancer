@@ -27,22 +27,24 @@ module.exports = (function RequestMirror() {
         }
     };
 
-    self._parseBody=function(bodyData){
-        var ret={};
-        var done=false;
-        try{
-            ret=JSON.parse(bodyData);
-            done=true;
-        }catch(e){}
+    self._parseBody = function (bodyData) {
+        var ret = {};
+        var done = false;
+        try {
+            ret = JSON.parse(bodyData);
+            done = true;
+        } catch (e) {
+        }
 
-        try{
-            if(done==false){
-                ret=querystring.parse(bodyData);
+        try {
+            if (done == false) {
+                ret = querystring.parse(bodyData);
             }
-        }catch(e){}
+        } catch (e) {
+        }
 
-        if(Object.keys(ret).length==0){
-            ret='';
+        if (Object.keys(ret).length == 0) {
+            ret = '';
         }
 
         return ret;
@@ -50,7 +52,7 @@ module.exports = (function RequestMirror() {
 
     self.start = function (ip, port) {
         console.log('RequestMirror.start( http://' + ip + ':' + port + '/ )');
-        http.createServer(function (req, res) {
+        var server = http.createServer(function (req, res) {
 
             console.log('RequestMirror: incomming request');
 
@@ -68,15 +70,27 @@ module.exports = (function RequestMirror() {
                 };
 
 
-                setTimeout(function () {
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify(ret));
-                }, 0);
+                //stop server if body.stop==true
+                try {
+                    if (ret.body.stop == true) {
+                        console.log('#### body stop: exiting Request mirror ####');
+                        server.close();
+                    }
+                } catch ($e) {
+
+                }
+
+
+                    setTimeout(function () {
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify(ret));
+                    }, 0);
+
             });
             req.on('error', function (err) {
                 res.end('Error');
             });
-        }).listen(port,ip);
+        }).listen(port, ip);
     };
 
     return self.start;
