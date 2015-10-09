@@ -368,6 +368,8 @@ module.exports = (function StickyLoadBalancer() {
                             method: req.method,
                             headers: req.headers
                         };
+                        options.headers.originalHostname=req.headers.host;
+
                         delete options.headers.host;
 
                         /**
@@ -412,6 +414,7 @@ module.exports = (function StickyLoadBalancer() {
                                 method: req.method,
                                 headers: req.headers
                             };
+                            options.headers.originalHostname=req.headers.host;
                             delete options.headers.host;
 
                             /**
