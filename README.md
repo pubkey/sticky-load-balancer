@@ -5,7 +5,7 @@ NPM-Module for Nodejs to create a loadbalancer with a sticky-strategie.
 Create own sticky strategies to distribute requests.
 
 # Dependencies
-This modules need the npm-module 'farmhash'. To use this u need a compiler.
+This module needs the npm-module 'farmhash'. To use this u need a compiler.
 For Linux you can run the following commands
 ```{r, engine='bash', count_lines}
 apt-get install build-essential
