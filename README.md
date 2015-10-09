@@ -12,6 +12,7 @@ apt-get install build-essential
 apt-get install python
 apt-get install g++
 npm install node-gyp -g
+```
 
 # Installation
 `npm install sticky-load-balancer --save`
