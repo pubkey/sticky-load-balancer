@@ -356,7 +356,7 @@ module.exports = (function StickyLoadBalancer() {
                     if (_canPipe(self, req)) {
                         hashObj = _getHashObject(self, req);
                         useNode = _findDistributionNode(self, hashObj);
-                        console.dir(hashObj);
+                        //console.dir(hashObj);
 
                         //2. redirect the request
                         var options = {
