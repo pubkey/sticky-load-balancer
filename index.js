@@ -5,7 +5,7 @@
  * @constructor
  */
 module.exports = (function StickyLoadBalancer() {
-    var self = this;
+    var self = {};
 
     var doLog = false;
     var log = function (w) {
