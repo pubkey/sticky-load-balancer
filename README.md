@@ -1,3 +1,9 @@
+# NOTICE
+This project will get refactored in 3/2017.
+It is currently working as it should and I use it in production with over 250.000 requests/day on a single server.
+The problem is that the code is ugly, the usage of `farmhash` is unnecessary. There are no tests. There is no support for websockets. So if you want to help refactoring, make [contact](https://twitter.com/pubkeypubkey).
+If you want to use the current version, feel save, semver is and will be satisfied.
+
 # sticky-load-balancer
 Module for nodejs v4+ to create a loadbalancer with a sticky-strategie.
 
