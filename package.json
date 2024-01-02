@@ -17,7 +17,7 @@
     "balancing",
     "load-balancer"
   ],
-  "author": "danielsun174",
+  "author": "pubkey",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/danielsun174/sticky-load-balancer/issues"
