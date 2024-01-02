@@ -25,7 +25,7 @@ npm install node-gyp -g
 
 # Visit
 [npm](https://www.npmjs.com/package/sticky-load-balancer) | 
-[github](https://github.com/danielsun174/sticky-load-balancer)
+[github](https://github.com/pubkey/sticky-load-balancer)
 
 # Example Code
 ```js
