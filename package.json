@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/danielsun174/sticky-load-balancer.git"
+    "url": "git+https://github.com/pubkey/sticky-load-balancer.git"
   },
   "keywords": [
     "stick",
@@ -20,9 +20,9 @@
   "author": "pubkey",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/danielsun174/sticky-load-balancer/issues"
+    "url": "https://github.com/pubkey/sticky-load-balancer/issues"
   },
-  "homepage": "https://github.com/danielsun174/sticky-load-balancer#readme",
+  "homepage": "https://github.com/pubkey/sticky-load-balancer#readme",
   "dependencies": {
     "async": "*",
     "crypto": "*",
